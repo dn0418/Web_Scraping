@@ -72,6 +72,8 @@ def calculate_passed_minutes(time_str):
     seconds = int(time_parts[2])
     am_pm = time_str[-2:]
 
+    if hours == 12: hours = 0
+
     # Adjust hours if it's PM
     if am_pm.lower() == "pm":
         hours += 12
@@ -94,7 +96,8 @@ def ScrapeData():
     # "https://m8clicks.com/_View/RMOdds2.aspx?update=false&r=316466324&wd=2023-10-31&ot=e&isWC=False&ia=0&isSiteFav=False"
 
     chromeOptions = webdriver.ChromeOptions()
-    # chromeOptions.add_argument('--headless')
+    chromeOptions.add_argument('--headless')
+    chromeOptions.add_argument('--allow-running-insecure-content')
     chromeOptions.add_argument('--ignore-certificate-errors')
 
     # instantiate a webdriver
@@ -191,7 +194,7 @@ def ScrapeData():
     html = driver.page_source 
     # print(html)
 
-    analyzer = Analyzer(html, True, current_date)
+    analyzer = Analyzer(html, True, current_date, passed_minutes)
     leagues = analyzer.get_data()
 
     if len(leagues) != 0:
@@ -201,8 +204,10 @@ def ScrapeData():
 
     # Early Recording
 
-    for i in range(4):
-        early_date_format = change_date_format(current_date, i + 1, "%m/%d/%Y", "%Y-%m-%d")
+    k = 0
+    
+    for i in range(6):
+        early_date_format = change_date_format(current_date, i, "%m/%d/%Y", "%Y-%m-%d")
         early_url = early_url1 + early_date_format + early_url2
 
         try:
@@ -227,13 +232,16 @@ def ScrapeData():
 
         time.sleep(2)
 
-        analyzer = Analyzer(html, False, current_date)
+        analyzer = Analyzer(html, False, current_date, passed_minutes)
         leagues = analyzer.get_data()
 
         if len(leagues) != 0:
             record = Record(current_date, passed_minutes)
             record.set_data(leagues)
             record.create_file_sheet("record.xlsx")
+            k = k + 1
+        if k == 5: break
+
 
     print("URL")
     print(driver.current_url)
@@ -253,7 +261,7 @@ def call_function(scheduler):
     print("RECORD TIME: " + str(record_time))
     print("Runtime: " + str(runtime))
     # Calculate
-    current_seconds = record_time * 60 + int(runtime) + 1
+    current_seconds = record_time * 60 + int(runtime) + 1 + 300
     next_time = current_seconds // 1800 + 1
     after = 1800 * next_time - current_seconds
     if after < 0: after = 0
